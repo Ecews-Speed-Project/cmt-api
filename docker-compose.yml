@@ -4,25 +4,17 @@ services:
   web:
     build: .
     ports:
-      - "5000:5000"
+      - "5002:5002"
     environment:
-      - FLASK_APP=${FLASK_APP}
-      - FLASK_ENV=${FLASK_ENV}
-      - DEBUG=${DEBUG}
-      - SQLALCHEMY_DATABASE_URI=${SQLALCHEMY_DATABASE_URI}
-      - SQLALCHEMY_TRACK_MODIFICATIONS=${SQLALCHEMY_TRACK_MODIFICATIONS}
-      - SECRET_KEY=${SECRET_KEY}
-      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
-      - JWT_ACCESS_TOKEN_EXPIRES=${JWT_ACCESS_TOKEN_EXPIRES}
-      - JWT_REFRESH_TOKEN_EXPIRES=${JWT_REFRESH_TOKEN_EXPIRES}
-      - CORS_ORIGINS=${CORS_ORIGINS}
-    depends_on:
-      - db
+      - FLASK_APP=app.py
+      - FLASK_ENV=production
+      - DEBUG=False
+      - SQLALCHEMY_DATABASE_URI=mssql+pyodbc:///?odbc_connect=DRIVER%3D%7BODBC%2BDriver%2B17%2Bfor%2BSQL%2BServer%7D%3BSERVER%3D172.20.192.1%2C1433%3BDATABASE%3DSpeed%3BUID%3Dsa%3BPWD%3DP%40ssw0rd%3BTrustServerCertificate%3Dyes%3BConnection%2BTimeout%3D60
+      - SQLALCHEMY_TRACK_MODIFICATIONS=False
 
-  db:
-    image: mcr.microsoft.com/mssql/server:2022-latest
-    environment:
-      SA_PASSWORD: "Admin123"
-      ACCEPT_EULA: "Y"
-    ports:
-      - "1433:1433"
+      - SECRET_KEY=your-secret-key-change-in-production
+      - JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
+      - JWT_ACCESS_TOKEN_EXPIRES=3600
+      - JWT_REFRESH_TOKEN_EXPIRES=86400
+      - CORS_ORIGINS=http://localhost:3000,https://guidacareers.com,https://portal.guidacareers.com
+    restart: unless-stopped

@@ -3,7 +3,7 @@ import logging
 from logging.config import dictConfig
 from sqlalchemy import text
 from .config import Config
-from .extensions import db, jwt, ma, cors, migrate
+from .extensions import db, jwt, ma, cors
 
 # Configure logging
 dictConfig({
@@ -53,23 +53,23 @@ def create_app(config_class=Config):
     # Initialize extensions
     db.init_app(app)
     jwt.init_app(app)
-    cors.init_app(app, supports_credentials=True, resource={r"/api/*":
-             {
-                 'origins':
-                     [
-                         'http://localhost:3000',
-                         'https://guidacareers.com',
-                         'https://portal.guidacareers.com',
-                     ],
-             }
-         }
-    )  
+    cors.init_app(
+        app,
+        supports_credentials=True,
+        resources={
+            r"/api/*": {
+                "origins": ["http://localhost:5001", 'http://eboard.ecews.org:5001']  # Replace with your frontend's origin
+            }
+        }
+    )
  
     ma.init_app(app)
-    migrate.init_app(app, db)
 
-    # Test database connection
-    test_db_connection(app)
+    # Test database connection (non-blocking)
+    try:
+        test_db_connection(app)
+    except Exception as e:
+        logger.warning(f'Initial database connection test failed, but continuing: {str(e)}')
     
     with app.app_context():
         from app.jobs.scheduler import flask_scheduler
@@ -102,4 +102,13 @@ def create_app(config_class=Config):
     # Register CLI commands
     from app.cli.commands import register_commands
     register_commands(app)
+    
+    # Setup Swagger documentation (non-intrusive)
+    try:
+        from .swagger_setup import setup_swagger
+        setup_swagger(app)
+        logger.info('Swagger documentation setup successfully')
+    except Exception as e:
+        logger.warning(f'Swagger setup failed, but continuing: {str(e)}')
+    
     return app

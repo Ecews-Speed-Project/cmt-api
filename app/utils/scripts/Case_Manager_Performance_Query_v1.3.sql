@@ -6,7 +6,7 @@ IF OBJECT_ID('cms.performance', 'U') IS NOT NULL
 WITH 
 -- Tx_Cur: Patients currently on active treatment
 Tx_Cur_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.patientId) as Tx_Cur
+    SELECT cm.id as caseManagerId, COUNT(ll.pepId) as Tx_Cur
 	FROM (SELECT DISTINCT id FROM cms.case_managers) cm
 	LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
 	WHERE ll.currentArtStatus = 'Active'
@@ -59,10 +59,10 @@ Appointments_CTE AS (
 
 -- Appointments Kept: Patients who kept their appointments
 AppointmentsKept_CTE AS (
-    SELECT cm.id AS caseManagerId, COUNT(DISTINCT ll.patientId) AS appointments_completed
+    SELECT cm.id AS caseManagerId, COUNT(DISTINCT ll.pepId) AS appointments_completed
     FROM (SELECT DISTINCT id FROM cms.case_managers) cm
     LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN DrugPickupAppointment dpa ON dpa.caseManagerId = ll.caseManagerId AND dpa.patientId = ll.patientId
+    LEFT JOIN DrugPickupAppointment dpa ON dpa.caseManagerId = ll.caseManagerId AND dpa.pepId = ll.pepId
     WHERE ll.currentArtStatus = 'Active'
     AND ll.pharmacyLastPickupDate > dpa.pharmacyLastPickupDate
     GROUP BY cm.id
@@ -78,10 +78,10 @@ VLEligible_CTE AS (
 
 -- VL Samples Collected: Viral load samples collected
 VLCollected_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(DISTINCT ll.patientId) as viral_load_samples
+    SELECT cm.id as caseManagerId, COUNT(DISTINCT ll.pepId) as viral_load_samples
     FROM (SELECT DISTINCT id FROM cms.case_managers) cm
     LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN VLAppointment vla ON vla.caseManagerId = cm.id AND vla.patientId = ll.patientId
+    LEFT JOIN VLAppointment vla ON vla.caseManagerId = cm.id AND vla.pepId = ll.pepId
     WHERE ll.currentArtStatus = 'Active'
     AND ll.lastDateOfSampleCollection > vla.lastDateOfSampleCollection
     GROUP BY cm.id
@@ -93,7 +93,7 @@ QuarterEndDates AS (
         ll.caseManagerId,
         MAX(DATEADD(day, dpa.daysOfARVRefill, dpa.pharmacyLastPickupDate)) AS lastDateOfQuarter
     FROM LineList ll
-    JOIN DrugPickupAppointment dpa ON ll.caseManagerId = dpa.caseManagerId AND ll.patientId = dpa.patientId
+    JOIN DrugPickupAppointment dpa ON ll.caseManagerId = dpa.caseManagerId AND ll.pepId = dpa.pepId
     WHERE ll.currentArtStatus = 'Active'
     GROUP BY ll.caseManagerId
 ),
@@ -102,7 +102,7 @@ QuarterEndDates AS (
 ValidVL_CTE AS (
     SELECT
         cm.id AS caseManagerId,
-        COUNT(ll.patientId) AS viral_load_results
+        COUNT(ll.pepId) AS viral_load_results
     FROM (SELECT DISTINCT id FROM cms.case_managers) cm
     LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
     LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
@@ -119,7 +119,7 @@ ValidVL_CTE AS (
 SuppressedVL_CTE AS (
     SELECT
         cm.id AS caseManagerId,
-        COUNT(ll.patientId) AS viral_load_suppressed
+        COUNT(ll.pepId) AS viral_load_suppressed
     FROM (SELECT DISTINCT id FROM cms.case_managers) cm
     LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
     LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
@@ -129,7 +129,7 @@ SuppressedVL_CTE AS (
       AND qed.lastDateOfQuarter IS NOT NULL
       AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, qed.lastDateOfQuarter)
       AND ll.currentViralLoad IS NOT NULL
-      AND ll.currentViralLoad < 1000
+      AND ll.currentViralLoad < CAST(1000 AS FLOAT)
     GROUP BY cm.id
 )
 

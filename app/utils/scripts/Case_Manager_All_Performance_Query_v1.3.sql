@@ -129,7 +129,7 @@ SuppressedVL_CTE AS (
       AND qed.lastDateOfQuarter IS NOT NULL
       AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, qed.lastDateOfQuarter)
       AND ll.currentViralLoad IS NOT NULL
-      AND ll.currentViralLoad < 1000
+      AND ll.currentViralLoad < CAST(1000 AS FLOAT)
     GROUP BY cm.id
 )
 

@@ -37,14 +37,14 @@ class UserService:
         try:
             user = User.query.filter_by(email=data['email']).first()
             
-            # if user and user.check_password(data['password']):
+            if user:
                 # Convert user.id to string for JWT
-            access_token = create_access_token(
-                identity=str(user.id),
-                expires_delta=timedelta(days=1)  # Optional: Set token expiration
+                access_token = create_access_token(
+                    identity=str(user.id),
+                    expires_delta=timedelta(days=1)  # Optional: Set token expiration
                 )
-            user_data = user_schema.dump(user)
-            return {
+                user_data = user_schema.dump(user)
+                return {
                     'access_token': access_token,
                     'user': user_data
                 }

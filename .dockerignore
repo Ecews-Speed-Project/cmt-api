@@ -1,16 +1,17 @@
+# Git
+.git
+.gitignore
+
 # Python
 __pycache__
 *.pyc
 *.pyo
 *.pyd
 .Python
-env/
-venv/
-.env/
-.venv/
+env
 pip-log.txt
 pip-delete-this-directory.txt
-.tox/
+.tox
 .coverage
 .coverage.*
 .cache
@@ -18,19 +19,49 @@ nosetests.xml
 coverage.xml
 *.cover
 *.log
-
-# Git
 .git
-.gitignore
+.mypy_cache
+.pytest_cache
+.hypothesis
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
 
 # Docker
 Dockerfile
 docker-compose.yml
-.docker
+.dockerignore
 
-# VS Code
-.vscode/
+# Logs
+logs/
+*.log
 
-# Environment variables
+# Database
+*.db
+*.sqlite
+
+# Environment files
 .env
-.env.*
+.env.local
+.env.production
+
+# Documentation
+README.md
+docs/
+
+# Tests
+tests/
+# test_*  # Commented out to allow test_connection.py
+*_test.py

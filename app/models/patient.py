@@ -25,6 +25,7 @@ class Patient(db.Model):
     
     # Clinical Information
     art_start_date = db.Column('artStartDate', db.DateTime)
+    days_on_art = db.Column('daysOnArt', db.String(50))
     pharmacy_last_pickup_date = db.Column('pharmacyLastPickupdate', db.DateTime)
     days_of_arv_refill = db.Column('daysOfArvRefill', db.Integer)
     current_pregnancy_status = db.Column('currentPregnancyStatus', db.String(50))

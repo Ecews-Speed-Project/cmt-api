@@ -37,7 +37,8 @@ IF OBJECT_ID('cms.all_performance', 'U') IS NOT NULL
 
 -- Create the all performance table
 CREATE TABLE cms.all_performance (
-    CaseManagerID VARCHAR(50) PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    CaseManagerID VARCHAR(50) NOT NULL,
     Tx_Cur INT DEFAULT 0,
     IIT INT DEFAULT 0,
     Dead INT DEFAULT 0,

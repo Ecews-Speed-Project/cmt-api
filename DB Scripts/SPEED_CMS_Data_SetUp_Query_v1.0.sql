@@ -16,7 +16,8 @@ select distinct CaseManagementTeamNameIdentifier,
 
 -- create case mangers table
 CREATE TABLE cms.case_managers (
-    id NVARCHAR(100) PRIMARY KEY,
+    cm_id INT IDENTITY(1,1) PRIMARY KEY,
+    id NVARCHAR(100) NOT NULL,
     fullname NVARCHAR(100) NOT NULL,
     role NVARCHAR(100) NOT NULL,
     cmt NVARCHAR(100) NOT NULL,
@@ -33,15 +34,15 @@ INSERT INTO [cms].[case_managers]
            ,[cmt]
            ,[state]
            ,[facilities])
-SELECT 
+SELECT
     cm.CasemanagementID,
     cm.NameofCaseManager,
 
     -- Distinct role IDs concatenated
     (
-        SELECT STRING_AGG(CAST(r.id AS NVARCHAR(MAX)), ',')
+        SELECT STRING_AGG(r.role, ',')
         FROM (
-            SELECT DISTINCT r.id
+            SELECT DISTINCT r.role
             FROM [Speed].[cms].[case_manager_list] cml
             INNER JOIN [cms].[cm_roles] r ON cml.roles = r.role
             WHERE cml.CasemanagementID = cm.CasemanagementID
@@ -50,25 +51,30 @@ SELECT
 
     -- Distinct CMT names concatenated
     (
-       
+        SELECT STRING_AGG(c.name, ',')
+        FROM (
             SELECT DISTINCT c.name
             FROM [Speed].[cms].[case_manager_list] cml
             INNER JOIN [cms].[cmt] c ON cml.CasemanagementTeamNameIdentifier = c.name
             WHERE cml.CasemanagementID = cm.CasemanagementID
-        
+        ) AS c
     ) AS cmt,
 
     (
-		SELECT DISTINCT s.StateId FROM [SPEED].[cms].case_manager_list AS cml
-		INNER JOIN [SPEED].[dbo].[State] s ON cml.State = s.StateName
-		WHERE cml.CasemanagementID = cm.CasemanagementID
-	) as state,
+        SELECT STRING_AGG(s.StateName, ',')
+        FROM (
+            SELECT DISTINCT s.StateName
+            FROM [SPEED].[cms].case_manager_list AS cml
+            INNER JOIN [SPEED].[dbo].[State] s ON cml.State = s.StateName
+            WHERE cml.CasemanagementID = cm.CasemanagementID
+        ) AS s
+    ) AS state,
 
     -- Distinct facility IDs concatenated
     (
-        SELECT STRING_AGG(CAST(fac_sub.facilityId AS NVARCHAR(MAX)), ',')
+        SELECT STRING_AGG(CAST(fac_sub.FacilityName AS NVARCHAR(MAX)), ',')
         FROM (
-            SELECT DISTINCT f.facilityId
+            SELECT DISTINCT f.FacilityName
             FROM [Speed].[cms].[case_manager_list] cml
             INNER JOIN [dbo].[facilities] f ON cml.DatimCode = f.DatimCode
             WHERE cml.CasemanagementID = cm.CasemanagementID

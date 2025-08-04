@@ -32,16 +32,16 @@ class CMTService:
             ).all()
 
             # Get patient count for this CMT's case managers
-            patient_count = db.session.query(func.count(Patient.id)).join(
-                CaseManager, 
-                Patient.case_manager_id == CaseManager.id
-            ).filter(
-                and_(
-                    CaseManager.cmt == cmt.name,
-                    CaseManager.state == cmt.state,
-                    CaseManager.facilities == cmt.facility_name
-                )
-            ).scalar() or 0
+            total_patient_count = 0
+            for case_manager in case_managers:
+                patient_count = db.session.query(Patient).filter(
+                    and_(
+                        # CaseManager.cmt == cmt.name,
+                        # CaseManager.state == cmt.state,
+                        # CaseManager.facilities == cmt.facility_name
+                        Patient.case_manager_id == case_manager.id
+                    )).count()
+                total_patient_count += patient_count
 
             # Create the CMT dict with additional data
             cmt_data = cmt_schema.dump(cmt)
@@ -56,7 +56,7 @@ class CMTService:
                 }
                 for cm in case_managers
             ]
-            cmt_data['patient_count'] = patient_count
+            cmt_data['patient_count'] = total_patient_count
             result.append(cmt_data)
 
         return result    
@@ -119,17 +119,21 @@ class CMTService:
                 )
             ).all()
 
+            print(f"Case managers for CMT {cmt.name}: {[cm.id for cm in case_managers]}")
+
             # Get patient count
-            patient_count = db.session.query(func.count(Patient.id)).join(
-                CaseManager, 
-                Patient.case_manager_id == CaseManager.id
-            ).filter(
-                and_(
-                    CaseManager.cmt == cmt.name,
-                    CaseManager.state == cmt.state,
-                    CaseManager.facilities == cmt.facility_name
-                )
-            ).scalar() or 0            # Get performance metrics
+            total_patient_count = 0
+            for case_manager in case_managers:
+                patient_count = db.session.query(Patient).filter(
+                    and_(
+                        # CaseManager.cmt == cmt.name,
+                        # CaseManager.state == cmt.state,
+                        # CaseManager.facilities == cmt.facility_name
+                        Patient.case_manager_id == case_manager.id
+                    )).count()
+                print(f"Patient count for Case Manager {case_manager.id}: {patient_count}")
+                total_patient_count += patient_count
+                            # Get performance metrics
             performance = db.session.query(
                 func.count(distinct(CaseManager.id)).label('total_case_managers'),
                 func.sum(CaseManagerPerformance.tx_cur).label('total_tx_cur'),
@@ -167,7 +171,7 @@ class CMTService:
                 }
                 for cm in case_managers
             ]
-            cmt_data['patient_count'] = patient_count
+            cmt_data['patient_count'] = total_patient_count
 
             # Add performance metrics if available
             if performance:

@@ -3,7 +3,7 @@ from operator import or_
 import re
 from app.models import DrugPickup, ViralLoad, CaseManager, CMT, Patient, Facility, CaseManagerPerformance, State
 from app import db
-from sqlalchemy import func, and_, or_, case, literal, literal_column, text, cast, Date
+from sqlalchemy import func, and_, or_, case, literal, literal_column, text, cast, Date, Integer, Float
 from datetime import datetime, timedelta
 import logging
 from .performance_service import PerformanceService
@@ -57,36 +57,40 @@ class DashboardService:
                 Patient.current_art_status == "Active"
             ).count()
 
+            
+            total_days_to_add = cast(cast(Patient.days_of_arv_refill, Float), Integer) + 28
+            iit_date = func.dateadd(
+                text('day'),
+                total_days_to_add,
+                Patient.pharmacy_last_pickup_date
+            )
+
             # IIT: Inactive patients
             iit = patient_query.filter(
-                Patient.current_art_status != "active"
+                Patient.current_art_status != "active",
+                Patient.outcomes == "",
+                iit_date.between(start_date, end_date)
             ).count()
 
             # Drug Pickup Appointments
             drug_pickup = patient_query.filter(
-                Patient.pharmacy_last_pickup_date.between(start_date, end_date)
+                Patient.pharmacy_last_pickup_date.between(start_date, end_date),
+                Patient.pharmacy_last_pickup_date != None
                 ).count()
 
             # Viral Load Stats with corrected query
             vl_eligible = patient_query.filter(
                 Patient.current_art_status == 'Active',
-                func.datediff(
-                            text('day'),
-                            art_start,
-                            current_date
-                        ) >= 180,
+                cast(Patient.days_on_art, Integer) >= 180,
                 ).count()
             
             vl_eligible2 = vl_query.count()
             
             # Viral Load Results
+            vl_end_date = "2025-07-18"
             vl_results = patient_query.filter(
                 Patient.current_art_status == 'Active',
-                func.datediff(
-                            text('day'),
-                            art_start,
-                            current_date
-                        ) >= 180,
+                cast(Patient.days_on_art, Integer) >= 180,
                     # Handle NULL or empty string cases properly
                 and_(
                         Patient.current_viral_load != None,  
@@ -96,23 +100,19 @@ class DashboardService:
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(end_date)
+                        literal(vl_end_date)
                     ) >= 0,
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(end_date)
+                        literal(vl_end_date)
                     ) <= 365
             ).count()
 
             # Viral Load Suppressed
             vl_suppressed = patient_query.filter(
                 Patient.current_art_status == 'Active',
-                func.datediff(
-                            text('day'),
-                            art_start,
-                            current_date
-                        ) >= 180,
+                cast(Patient.days_on_art, Integer) >= 180,
                     # Handle NULL or empty string cases properly
                 and_(
                         Patient.current_viral_load != None,  
@@ -122,14 +122,14 @@ class DashboardService:
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(end_date)
+                        literal(vl_end_date)
                     ) >= 0,
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(end_date)
+                        literal(vl_end_date)
                     ) <= 365,
-                Patient.current_viral_load < 1000
+                Patient.current_viral_load < 1000.0
                 ).count()
             vl_collected = patient_query.filter(
                 Patient.current_art_status == 'Active',

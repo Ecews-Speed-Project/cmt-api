@@ -5,6 +5,15 @@ class Config:
     FLASK_APP = os.environ.get('FLASK_APP')
     FLASK_ENV = os.environ.get('FLASK_ENV')
     DEBUG = os.environ.get('DEBUG', False)
+    SQLALCHEMY_ENGINE_OPTIONS = {
+        "pool_pre_ping": True,
+        "pool_recycle": 3600,
+        "pool_timeout": 60,
+        "max_overflow": 10,
+        "connect_args": {
+            "timeout": 60
+        }
+    }
     SQLALCHEMY_DATABASE_URI = os.environ.get('SQLALCHEMY_DATABASE_URI')
     SQLALCHEMY_TRACK_MODIFICATIONS = os.environ.get('SQLALCHEMY_TRACK_MODIFICATIONS', False)
     SECRET_KEY = os.environ.get('SECRET_KEY')
