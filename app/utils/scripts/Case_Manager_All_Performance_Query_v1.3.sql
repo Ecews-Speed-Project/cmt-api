@@ -1,52 +1,48 @@
--- Drop table if it exists (optional - remove if you want to preserve existing data)
-IF OBJECT_ID('cms.all_performance', 'U') IS NOT NULL
-    TRUNCATE TABLE cms.all_performance;
-
--- Insert data into the all performance table
+-- Insert data into the performance table
 WITH 
 -- Tx_Cur: Patients currently on active treatment
 Tx_Cur_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.patientId) as Tx_Cur
-	FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-	LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.pepId) as Tx_Cur
+	FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+	LEFT JOIN CMPatientLineList as ll on ll.caseManagerId = cm.cm_id
 	WHERE ll.currentArtStatus = 'Active'
-	GROUP BY cm.id
+	GROUP BY cm.cm_id
 ),
 
 -- IIT: Patients lost to follow up
 IIT_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.caseManagerId) as IIT
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.caseManagerId) as IIT
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList as ll on ll.caseManagerId = cm.cm_id
     WHERE ll.currentArtStatus = 'LTFU' OR ll.currentArtStatus = 'Lost to follow up'
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Dead: Patients reported as deceased
 Dead_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.caseManagerId) as Dead
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.caseManagerId) as Dead
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList as ll on ll.caseManagerId = cm.cm_id
     WHERE ll.currentArtStatus = 'Death'
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Discontinued: Patients who discontinued treatment
 Discontinued_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.caseManagerId) as Discontinued
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.caseManagerId) as Discontinued
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList as ll on ll.caseManagerId = cm.cm_id
     WHERE ll.currentArtStatus Like '%Discontinue%'
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Transferred Out: Patients transferred to other facilities
 TransferredOut_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(ll.caseManagerId) as Transferred_Out
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList as ll on ll.caseManagerId = cm.id
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.caseManagerId) as Transferred_Out
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList as ll on ll.caseManagerId = cm.cm_id
     WHERE ll.currentArtStatus = 'Transferred Out'
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Total Appointments: All scheduled appointments
@@ -59,13 +55,23 @@ Appointments_CTE AS (
 
 -- Appointments Kept: Patients who kept their appointments
 AppointmentsKept_CTE AS (
-    SELECT cm.id AS caseManagerId, COUNT(DISTINCT ll.patientId) AS appointments_completed
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN DrugPickupAppointment dpa ON dpa.caseManagerId = ll.caseManagerId AND dpa.patientId = ll.patientId
+    SELECT cm.cm_id AS caseManagerId, COUNT(DISTINCT ll.pepId) AS appointments_completed
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList ll ON ll.caseManagerId = cm.cm_id
+    LEFT JOIN DrugPickupAppointment dpa ON dpa.caseManagerId = ll.caseManagementId AND dpa.pepId = ll.pepId
     WHERE ll.currentArtStatus = 'Active'
     AND ll.pharmacyLastPickupDate > dpa.pharmacyLastPickupDate
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
+),
+
+-- VL Eligible: Patients eligible for viral load testing
+FY_VLEligible_CTE AS (
+    SELECT cm.cm_id as caseManagerId, COUNT(ll.pepId) as fy_viral_load_eligible
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList ll ON ll.caseManagerId = cm.cm_id
+	WHERE ll.currentArtStatus = 'Active'
+	AND ll.daysOnArt >= 180
+    GROUP BY cm.cm_id
 ),
 
 -- VL Eligible: Patients eligible for viral load testing
@@ -78,59 +84,60 @@ VLEligible_CTE AS (
 
 -- VL Samples Collected: Viral load samples collected
 VLCollected_CTE AS (
-    SELECT cm.id as caseManagerId, COUNT(DISTINCT ll.patientId) as viral_load_samples
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN VLAppointment vla ON vla.caseManagerId = cm.id AND vla.patientId = ll.patientId
+    SELECT cm.cm_id as caseManagerId, COUNT(DISTINCT ll.pepId) as viral_load_samples
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList ll ON ll.caseManagerId = cm.cm_id
+    LEFT JOIN VLAppointment vla ON vla.caseManagerId = ll.caseManagementId AND vla.pepId = ll.pepId
     WHERE ll.currentArtStatus = 'Active'
     AND ll.lastDateOfSampleCollection > vla.lastDateOfSampleCollection
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Quarter End Dates: Used for viral load calculations
-QuarterEndDates AS (
-    SELECT
-        ll.caseManagerId,
-        MAX(DATEADD(day, dpa.daysOfARVRefill, dpa.pharmacyLastPickupDate)) AS lastDateOfQuarter
-    FROM LineList ll
-    JOIN DrugPickupAppointment dpa ON ll.caseManagerId = dpa.caseManagerId AND ll.patientId = dpa.patientId
-    WHERE ll.currentArtStatus = 'Active'
-    GROUP BY ll.caseManagerId
-),
+--QuarterEndDates AS (
+    --SELECT
+        -- ll.caseManagerId,
+        -- MAX(dpa.estimatedNextAppointmentPharmacy) AS lastDateOfQuarter
+    -- FROM CMPatientLineList ll
+    -- JOIN DrugPickupAppointment dpa ON ll.caseManagementId = dpa.caseManagerId AND ll.pepId = dpa.pepId
+    -- WHERE ll.currentArtStatus = 'Active'
+    -- GROUP BY ll.caseManagerId
+	--MAX(estimatedNextAppointmentPharmacy) FROM DrugPickupAppointment
+---),
 
 -- Valid Viral Load: Patients with valid viral load results
 ValidVL_CTE AS (
     SELECT
-        cm.id AS caseManagerId,
-        COUNT(ll.patientId) AS viral_load_results
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
+        cm.cm_id AS caseManagerId,
+        COUNT(ll.pepId) AS viral_load_results
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList ll ON ll.caseManagerId = cm.cm_id
+    --LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
     WHERE ll.currentArtStatus = 'Active'
       AND ll.daysOnART >= 180
       AND ll.dateOfCurrentViralLoad IS NOT NULL
-      AND qed.lastDateOfQuarter IS NOT NULL
-      AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, qed.lastDateOfQuarter)
+      --AND qed.lastDateOfQuarter IS NOT NULL
+      AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, (SELECT MAX(estimatedNextAppointmentPharmacy) from DrugPickupAppointment))
       AND ll.currentViralLoad IS NOT NULL
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 ),
 
 -- Suppressed Viral Load: Patients with suppressed viral load
 SuppressedVL_CTE AS (
     SELECT
-        cm.id AS caseManagerId,
-        COUNT(ll.patientId) AS viral_load_suppressed
-    FROM (SELECT DISTINCT id FROM cms.case_managers) cm
-    LEFT JOIN LineList ll ON ll.caseManagerId = cm.id
-    LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
+        cm.cm_id AS caseManagerId,
+        COUNT(ll.pepId) AS viral_load_suppressed
+    FROM (SELECT DISTINCT cm_id FROM cms.case_managers) cm
+    LEFT JOIN CMPatientLineList ll ON ll.caseManagerId = cm.cm_id
+    --LEFT JOIN QuarterEndDates qed ON ll.caseManagerId = qed.caseManagerId
     WHERE ll.currentArtStatus = 'Active'
       AND ll.daysOnART >= 180
       AND ll.dateOfCurrentViralLoad IS NOT NULL
-      AND qed.lastDateOfQuarter IS NOT NULL
-      AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, qed.lastDateOfQuarter)
+      --AND qed.lastDateOfQuarter IS NOT NULL
+      AND ll.dateOfCurrentViralLoad >= DATEADD(day, -360, (SELECT MAX(estimatedNextAppointmentPharmacy) from DrugPickupAppointment))
       AND ll.currentViralLoad IS NOT NULL
       AND ll.currentViralLoad < CAST(1000 AS FLOAT)
-    GROUP BY cm.id
+    GROUP BY cm.cm_id
 )
 
 -- Insert the combined result into the performance table
@@ -144,6 +151,7 @@ INSERT INTO cms.all_performance(
     appointments_schedule,
     appointments_completed,
     appointment_compliance,
+	fy_viral_load_eligible,
     viral_load_eligible,
     viral_load_samples,
     sample_collection_rate,
@@ -165,6 +173,7 @@ SELECT
         WHEN ISNULL(appt.appointments_schedule, 0) = 0 THEN 0 
         ELSE CAST(ISNULL(ak.appointments_completed, 0) AS FLOAT) / ISNULL(appt.appointments_schedule, 0) * 100 
     END AS appointment_compliance,
+	ISNULL(fy_vle.fy_viral_load_eligible, 0) AS fy_viral_load_eligible,
     ISNULL(vle.viral_load_eligible, 0) AS viral_load_eligible,
     ISNULL(vlc.viral_load_samples, 0) AS viral_load_samples,
     CASE 
@@ -198,14 +207,15 @@ SELECT
     ) / 4.0 AS final_score
 FROM 
     cms.case_managers cm
-LEFT JOIN Tx_Cur_CTE tc ON cm.id = tc.caseManagerId
-LEFT JOIN IIT_CTE iit ON cm.id = iit.caseManagerId
-LEFT JOIN Dead_CTE d ON cm.id = d.caseManagerId
-LEFT JOIN Discontinued_CTE disc ON cm.id = disc.caseManagerId
-LEFT JOIN TransferredOut_CTE tout ON cm.id = tout.caseManagerId
+LEFT JOIN Tx_Cur_CTE tc ON cm.cm_id = tc.caseManagerId
+LEFT JOIN IIT_CTE iit ON cm.cm_id = iit.caseManagerId
+LEFT JOIN Dead_CTE d ON cm.cm_id = d.caseManagerId
+LEFT JOIN Discontinued_CTE disc ON cm.cm_id = disc.caseManagerId
+LEFT JOIN TransferredOut_CTE tout ON cm.cm_id = tout.caseManagerId
 LEFT JOIN Appointments_CTE appt ON cm.id = appt.caseManagerId
-LEFT JOIN AppointmentsKept_CTE ak ON cm.id = ak.caseManagerId
+LEFT JOIN AppointmentsKept_CTE ak ON cm.cm_id = ak.caseManagerId
+LEFT JOIN FY_VLEligible_CTE fy_vle ON cm.cm_id = fy_vle.caseManagerId
 LEFT JOIN VLEligible_CTE vle ON cm.id = vle.caseManagerId
-LEFT JOIN VLCollected_CTE vlc ON cm.id = vlc.caseManagerId
-LEFT JOIN ValidVL_CTE vvl ON cm.id = vvl.caseManagerId
-LEFT JOIN SuppressedVL_CTE svl ON cm.id = svl.caseManagerId;
+LEFT JOIN VLCollected_CTE vlc ON cm.cm_id = vlc.caseManagerId
+LEFT JOIN ValidVL_CTE vvl ON cm.cm_id = vvl.caseManagerId
+LEFT JOIN SuppressedVL_CTE svl ON cm.cm_id = svl.caseManagerId;

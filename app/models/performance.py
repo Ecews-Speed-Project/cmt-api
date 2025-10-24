@@ -15,6 +15,7 @@ class CaseManagerPerformance(db.Model):
     appointments_schedule = db.Column(db.Integer, default=0)
     appointments_completed = db.Column(db.Integer, default=0)
     appointment_compliance = db.Column(db.Numeric(5, 2), default=0)
+    fy_viral_load_eligible = db.Column(db.Integer, default=0)
     viral_load_eligible = db.Column(db.Integer, default=0)
     viral_load_samples = db.Column(db.Integer, default=0)
     sample_collection_rate = db.Column(db.Numeric(5, 2), default=0)

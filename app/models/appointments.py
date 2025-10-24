@@ -24,6 +24,7 @@ class DrugPickup(db.Model):
     recapture_count = db.Column('RecaptureCount', db.Integer)
     case_manager = db.Column('CaseManagerId', db.String(100))
     age_band = db.Column('AgeBand', db.String(50))
+    next_appointment_date = db.Column('estimatedNextAppointmentPharmacy', db.DateTime)
 
 class ViralLoad(db.Model):
     __tablename__ = 'VLAppointment'

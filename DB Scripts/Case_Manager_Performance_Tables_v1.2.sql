@@ -5,7 +5,8 @@ IF OBJECT_ID('cms.performance', 'U') IS NOT NULL
 
 -- Create the performance table
 CREATE TABLE cms.performance (
-    CaseManagerID VARCHAR(50) PRIMARY KEY,
+    id INT IDENTITY(1,1) PRIMARY KEY,
+    CaseManagerID VARCHAR(50) NOT NULL,
     Tx_Cur INT DEFAULT 0,
     IIT INT DEFAULT 0,
     Dead INT DEFAULT 0,
@@ -14,6 +15,7 @@ CREATE TABLE cms.performance (
     appointments_schedule INT DEFAULT 0,
     appointments_completed INT DEFAULT 0,
     appointment_compliance DECIMAL(5,2) DEFAULT 0,
+    fy_viral_load_eligible INT DEFAULT 0,
     viral_load_eligible INT DEFAULT 0,
     viral_load_samples INT DEFAULT 0,
     sample_collection_rate DECIMAL(5,2) DEFAULT 0,
@@ -48,6 +50,7 @@ CREATE TABLE cms.all_performance (
     appointments_completed INT DEFAULT 0,
     appointment_compliance DECIMAL(5,2) DEFAULT 0,
     viral_load_eligible INT DEFAULT 0,
+    fy_viral_load_eligible INT DEFAULT 0,
     viral_load_samples INT DEFAULT 0,
     sample_collection_rate DECIMAL(5,2) DEFAULT 0,
     viral_load_results INT DEFAULT 0,

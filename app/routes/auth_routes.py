@@ -86,7 +86,7 @@ def login():
         if auth_result:
             return jsonify(auth_result), 200
             
-        return jsonify({"error": "Invalid credentials"}), 401
+        return jsonify({"error": "Invalid email or password"}), 401
     except Exception as e:
         logger.error(f"Login error: {str(e)}")
         return jsonify({"error": "An error occurred during login", "err_str": str(e)}), 500

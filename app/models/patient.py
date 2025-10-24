@@ -2,7 +2,7 @@ from app import db
 from datetime import datetime
 
 class Patient(db.Model):
-    __tablename__ = 'LineList'
+    __tablename__ = 'CMPatientLineList'
     __table_args__ = {'schema': 'dbo'}
     
     id = db.Column('uniquePatientId', db.String(100), primary_key=True)

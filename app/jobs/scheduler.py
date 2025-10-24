@@ -37,7 +37,8 @@ class FlaskScheduler:
         # Daily performance job at midnight
         self.scheduler.add_job(
             self.run_daily_performance_query,
-            trigger=CronTrigger(minute='*/2'),
+            # trigger=CronTrigger(minute='*/2'),
+            trigger=CronTrigger(hour=0, minute=0, second=0),
             id='daily_performance_calculation',
             name='Daily Case Manager Performance',
             replace_existing=True

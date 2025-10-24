@@ -39,7 +39,7 @@ class CMTService:
                         # CaseManager.cmt == cmt.name,
                         # CaseManager.state == cmt.state,
                         # CaseManager.facilities == cmt.facility_name
-                        Patient.case_manager_id == case_manager.id
+                        Patient.case_manager_id == case_manager.cm_id
                     )).count()
                 total_patient_count += patient_count
 
@@ -129,7 +129,7 @@ class CMTService:
                         # CaseManager.cmt == cmt.name,
                         # CaseManager.state == cmt.state,
                         # CaseManager.facilities == cmt.facility_name
-                        Patient.case_manager_id == case_manager.id
+                        Patient.case_manager_id == case_manager.cm_id
                     )).count()
                 print(f"Patient count for Case Manager {case_manager.id}: {patient_count}")
                 total_patient_count += patient_count

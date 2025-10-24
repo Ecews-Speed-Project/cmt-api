@@ -9,12 +9,11 @@ services:
       - FLASK_APP=app.py
       - FLASK_ENV=production
       - DEBUG=False
-      - SQLALCHEMY_DATABASE_URI=mssql+pyodbc:///?odbc_connect=DRIVER%3D%7BODBC%2BDriver%2B17%2Bfor%2BSQL%2BServer%7D%3BSERVER%3D172.20.192.1%2C1433%3BDATABASE%3DSpeed%3BUID%3Dsa%3BPWD%3DP%40ssw0rd%3BTrustServerCertificate%3Dyes%3BConnection%2BTimeout%3D60
-      - SQLALCHEMY_TRACK_MODIFICATIONS=False
-
+      - SQLALCHEMY_DATABASE_URI=mssql+pyodbc:///?odbc_connect=DRIVER%3D%7BODBC%2BDriver%2B17%2Bfor%2BSQL%2BServer%7D%3BSERVER%3D172.20.192.1%2C1433%3BDATABASE%3DSpeed%3BUID%3Dmy_admin%3BPWD%3DStr0ng%21P%40ssw0rd%232025%3BTrustServerCertificate%3Dyes%3BConnection%2BTimeout%3D60
       - SECRET_KEY=your-secret-key-change-in-production
       - JWT_SECRET_KEY=your-jwt-secret-key-change-in-production
       - JWT_ACCESS_TOKEN_EXPIRES=3600
       - JWT_REFRESH_TOKEN_EXPIRES=86400
       - CORS_ORIGINS=http://localhost:3000,https://guidacareers.com,https://portal.guidacareers.com
     restart: unless-stopped
+ 

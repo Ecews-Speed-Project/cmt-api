@@ -12,26 +12,24 @@ logger = logging.getLogger(__name__)
 
 class DashboardService:
     @staticmethod
+    def _get_date_range_from_next_appointment():
+        """Get min and max dates from DrugPickup.next_appointment_date field"""
+        date_range = db.session.query(
+            func.min(DrugPickup.next_appointment_date).label('min_date'),
+            func.max(DrugPickup.next_appointment_date).label('max_date')
+        ).first()
+        
+        return date_range.min_date, date_range.max_date
+
+    @staticmethod
     def get_stats(start_date, end_date, user):
         try:
             #logger.info(f"Getting stats for user {str(user.user_id)} from {start_date} to {end_date}")
             
-            # Calculate next_appointment_date and get date range if not provided
+            # Get date range from next_appointment_date field if not provided
             if not start_date or not end_date:
-                next_appointment = func.dateadd(
-                    text('day'),
-                    DrugPickup.days_of_arv_refill,
-                    DrugPickup.pharmacy_last_pickup_date
-                )
-                
-                date_range = db.session.query(
-                func.min(next_appointment).label('min_date'),
-                func.max(next_appointment).label('max_date')
-                ).first()
-                
-                start_date = date_range.min_date
-                end_date = date_range.max_date
-                logger.info(f"Using calculated date range: {start_date} to {end_date}")
+                start_date, end_date = DashboardService._get_date_range_from_next_appointment()
+                logger.info(f"Using date range from next_appointment_date: {start_date} to {end_date}")
 
             # Get base query for patients based on user role
             patient_query = Patient.query
@@ -67,7 +65,7 @@ class DashboardService:
 
             # IIT: Inactive patients
             iit = patient_query.filter(
-                Patient.current_art_status != "active",
+                Patient.current_art_status != "Active",
                 Patient.outcomes == "",
                 iit_date.between(start_date, end_date)
             ).count()
@@ -87,7 +85,7 @@ class DashboardService:
             vl_eligible2 = vl_query.count()
             
             # Viral Load Results
-            vl_end_date = "2025-07-18"
+           
             vl_results = patient_query.filter(
                 Patient.current_art_status == 'Active',
                 cast(Patient.days_on_art, Integer) >= 180,
@@ -100,12 +98,12 @@ class DashboardService:
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(vl_end_date)
+                        literal(end_date)
                     ) >= 0,
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(vl_end_date)
+                        literal(end_date)
                     ) <= 365
             ).count()
 
@@ -122,12 +120,12 @@ class DashboardService:
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(vl_end_date)
+                        literal(end_date)
                     ) >= 0,
                 func.datediff(
                         text('day'),
                         Patient.date_of_current_viral_load,
-                        literal(vl_end_date)
+                        literal(end_date)
                     ) <= 365,
                 Patient.current_viral_load < 1000.0
                 ).count()
@@ -160,22 +158,10 @@ class DashboardService:
 
     @staticmethod
     def get_trends(start_date, end_date, user):
-        # Calculate next_appointment if dates not provided
+        # Get date range from next_appointment_date field if not provided
         if not start_date or not end_date:
-            next_appointment = func.dateadd(
-                text('day'),
-                DrugPickup.days_of_arv_refill,
-                DrugPickup.pharmacy_last_pickup_date
-            )
-            
-            date_range = db.session.query(
-                func.min(next_appointment).label('min_date'),
-                func.max(next_appointment).label('max_date')
-            ).first()
-            
-            start_date = date_range.min_date
-            end_date = date_range.max_date
-            logger.info(f"Using calculated trend date range: {start_date} to {end_date}")
+            start_date, end_date = DashboardService._get_date_range_from_next_appointment()
+            logger.info(f"Using trend date range from next_appointment_date: {start_date} to {end_date}")
 
         appointments = DashboardService._get_appointment_trends(start_date, end_date, user)
         viral_loads = DashboardService._get_viral_load_trends(start_date, end_date, user)
@@ -209,12 +195,8 @@ class DashboardService:
         
         # For each week period, calculate appointment counts
         for week_start, week_end, week_label in week_periods:
-            # Calculate expected appointment dates (PharmacyLastPickupdate + daysOfARVRefill)
-            expected_appointment = func.dateadd(
-                text('day'), 
-                DrugPickup.days_of_arv_refill, 
-                DrugPickup.pharmacy_last_pickup_date
-            )
+            # Use next_appointment_date field directly
+            expected_appointment = DrugPickup.next_appointment_date
             
             # Count patients with expected appointments within this week who showed up
             query = db.session.query(
@@ -273,12 +255,8 @@ class DashboardService:
         
         # For each week period, calculate appointment counts
         for week_start, week_end, week_label in week_periods:
-            # Calculate expected appointment dates (PharmacyLastPickupdate + daysOfARVRefill)
-            expected_appointment = func.dateadd(
-                text('day'), 
-                DrugPickup.days_of_arv_refill, 
-                DrugPickup.pharmacy_last_pickup_date
-            )
+            # Use next_appointment_date field directly
+            expected_appointment = DrugPickup.next_appointment_date
             
             # Count patients with expected appointments within this week who showed up
             query = db.session.query(

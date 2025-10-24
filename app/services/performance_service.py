@@ -77,6 +77,7 @@ class PerformanceService:
                 func.sum(CaseManagerPerformance.viral_load_suppressed).label('total_vl_suppressed'),
                 func.sum(CaseManagerPerformance.viral_load_samples).label('total_vl_samples'),
                 func.sum(CaseManagerPerformance.viral_load_results).label('total_vl_results'),
+                func.sum(CaseManagerPerformance.fy_viral_load_eligible).label('total_fy_vl_eligible'),
                 func.sum(CaseManagerPerformance.viral_load_eligible).label('total_vl_eligible'),
                 func.avg(CaseManagerPerformance.final_score).label('average_score')
             ).join(
@@ -128,6 +129,7 @@ class PerformanceService:
                     },
                     'viral_load': {
                         'suppressed': result.total_vl_suppressed or 0,
+                        'fy_eligible': result.total_fy_vl_eligible or 0,
                         'eligible': result.total_vl_eligible or 0,
                         'samples': result.total_vl_samples or 0,
                         'results': result.total_vl_results or 0,
@@ -205,6 +207,7 @@ class PerformanceService:
                 func.sum(CaseManagerPerformance.appointments_schedule).label('total_appointments_scheduled'),
                 func.sum(CaseManagerPerformance.viral_load_suppressed).label('total_vl_suppressed'),
                 func.sum(CaseManagerPerformance.viral_load_results).label('total_vl_results'),
+                func.sum(CaseManagerPerformance.fy_viral_load_eligible).label('total_fy_vl_eligible'),
                 func.sum(CaseManagerPerformance.viral_load_eligible).label('total_vl_eligible'),
                 func.avg(CaseManagerPerformance.final_score).label('average_score')
             ).join(
@@ -247,6 +250,7 @@ class PerformanceService:
                 },
                 'viral_load': {
                     'suppressed': result.total_vl_suppressed or 0,
+                    'fy_eligible': result.total_fy_vl_eligible or 0,
                     'eligible': result.total_vl_eligible or 0,
                     'results': result.total_vl_results or 0,
                     'suppression_rate': ((result.total_vl_suppressed or 0) / total_results) * 100
