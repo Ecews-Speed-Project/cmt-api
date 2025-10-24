@@ -62,11 +62,12 @@ class DashboardService:
                 total_days_to_add,
                 Patient.pharmacy_last_pickup_date
             )
+            
 
             # IIT: Inactive patients
             iit = patient_query.filter(
                 Patient.current_art_status != "Active",
-                Patient.outcomes == "",
+                or_(Patient.outcomes == "", Patient.outcomes.is_(None)),
                 iit_date.between(start_date, end_date)
             ).count()
 
