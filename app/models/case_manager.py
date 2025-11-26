@@ -15,10 +15,10 @@ class CaseManager(db.Model):
     
     assigned_patients = db.relationship(
         'Patient',
-        primaryjoin="CaseManager.id==foreign(Patient.case_manager_id)",
-        backref='case_manager',
-        lazy=True
+        primaryjoin="CaseManager.cm_id==foreign(Patient.case_manager_id)",
+        lazy='selectin'
     )
+    
     performance_metrics = db.relationship(
         'CaseManagerPerformance', 
         primaryjoin="CaseManager.id==foreign(CaseManagerPerformance.CaseManagerID)",
@@ -40,3 +40,11 @@ class CaseManager(db.Model):
         lazy=True
     )
     
+
+class CaseManagerClaims(db.Model):
+    __tablename__ = 'UserClaims'
+    __table_args__ = {'schema': 'user'}
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column("UserId", db.Integer, db.ForeignKey('user.Users.Id'))
+    claim_type = db.Column("ClaimType", db.String(100), nullable=False)
+    claim_value = db.Column("ClaimValue", db.String(100), nullable=False)

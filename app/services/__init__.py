@@ -6,6 +6,7 @@ from .dashboard_service import DashboardService
 from .report_service import ReportService
 from .facility_service import FacilityService
 from .performance_service import PerformanceService
+from .case_manager_mobile_service import CaseManagerMobileService
 
 __all__ = [
     'UserService',
@@ -15,5 +16,6 @@ __all__ = [
     'DashboardService', 
     'ReportService',
     'FacilityService',
-    'PerformanceService'
+    'PerformanceService',
+    'CaseManagerMobileService'
 ]

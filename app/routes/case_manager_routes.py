@@ -1,10 +1,11 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from app.services import CaseManagerService, UserService
+from app.services import CaseManagerService, UserService, CaseManagerMobileService
 from app.schemas.case_manager_schema import case_manager_schema, case_managers_schema
 from app.schemas.patient_schema import patients_schema
 from app.utils.rbac import role_required
 from app.utils.validators import validate_date_range
+from app.models import CaseManagerClaims
 
 bp = Blueprint('case_manager', __name__, url_prefix='/api/case-managers')
 
@@ -306,3 +307,49 @@ def get_case_manager(case_manager_id):
     if case_manager:
         return jsonify(case_manager), 200
     return jsonify({'message': 'Case manager not found or access denied'}), 404
+
+#APIs for mobile app
+@bp.route('/mobile/stats', methods=['GET'])
+@jwt_required()
+def get_my_case_manager_stats():
+    """
+    Get stats for the logged-in case manager
+    ---
+    tags:
+      - Case Managers
+    security:
+      - Bearer: []
+    responses:
+      200:
+        description: Case manager stats retrieved successfully
+        schema:
+          type: object
+          properties:
+            total_patients:
+              type: integer
+            tx_cur:
+              type: integer
+            iit:
+              type: integer
+            dead:
+              type: integer
+            transferred_out:
+              type: integer
+            stopped:
+              type: integer
+            viral_load:
+              type: object
+            appointments:
+              type: object
+      401:
+        description: Unauthorized - invalid or missing token
+    """
+    user = UserService.get_user_by_id(get_jwt_identity())
+    #print(user)
+    case_manager_id = CaseManagerClaims.query.filter_by(user_id=user['user_id'], claim_type='CaseManagerExternalId').first().claim_value
+    #print(case_manager_id)
+    if not user or not case_manager_id:
+        return jsonify({'message': 'Unauthorized'}), 401
+
+    stats = CaseManagerMobileService.get_stats(case_manager_id)
+    return jsonify(stats), 200

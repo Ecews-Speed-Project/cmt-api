@@ -1,6 +1,7 @@
 from flask_jwt_extended import create_access_token
-from app.models import User, Roles
+from app.models import User, Roles, CaseManager, CaseManagerClaims
 from app.schemas.user_schema import user_schema, users_schema
+from app.schemas.case_manager_schema import case_manager_schema
 from app.extensions import db
 from datetime import timedelta
 import logging
@@ -36,18 +37,34 @@ class UserService:
     def authenticate(data):
         try:
             user = User.query.filter_by(email=data['email']).first()
+
             
             if user:
+
                 # Convert user.id to string for JWT
                 access_token = create_access_token(
                     identity=str(user.id),
                     expires_delta=timedelta(days=1)  # Optional: Set token expiration
                 )
                 user_data = user_schema.dump(user)
-                return {
-                    'access_token': access_token,
-                    'user': user_data
-                }
+                print(user_data['roles'])
+                if 'CaseManager' in user_data['roles']:
+                    print('CaseManager found')
+                    case_manager_id = CaseManagerClaims.query.filter_by(user_id=user.id, claim_type='CaseManagerExternalId').first().claim_value
+                    if case_manager_id:
+                        case_manager = CaseManager.query.filter_by(id=case_manager_id).first()
+                        return {
+                            'access_token': access_token,
+                            'user': user_data,
+                            'case_manager': case_manager_schema.dump(case_manager)
+                        }
+                else:
+                    print('CaseManager not found')
+                    return {
+                        'access_token': access_token,
+                        'user': user_schema.dump(user),
+                        'case_manager': {}
+                    }
             return None
         except Exception as e:
             logger.error(f"Authentication error: {str(e)}", exc_info=True)

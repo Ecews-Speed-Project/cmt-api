@@ -2,64 +2,72 @@ from app.models import CMT, CaseManager, Patient, State, CaseManagerPerformance
 from app.schemas.cmt_schema import cmt_schema, cmts_schema
 from app import db
 from sqlalchemy import func, and_, distinct
+from sqlalchemy.orm import selectinload
 from datetime import datetime
 
 class CMTService:
+
+    "Get CMT List"
+    @staticmethod
+    def get_cmt_list(user=None):
+        """Get all CMTs with case managers and patient counts."""
+        query = db.session.query(CMT)
+        if 'Super Admin' not in user['roles']:
+            if 'Admin' in user['roles'] or 'State' in user['roles']:
+                query = query.join(
+                    State,
+                    State.name == CMT.state
+                ).filter(State.id == user['state_id'])
+        return cmt_schema.dump(query.all())
+        
+
     @staticmethod
     def get_all_cmt(user=None):
-        """Get all CMTs with case managers and patient counts."""
-        # Start with base CMT query
         query = db.session.query(CMT)
-        
+
+        # Apply role filters
         if 'Super Admin' not in user['roles']:
-                if 'Admin' in user['roles'] or 'State' in user['roles']:
-                    query = query.join(
-                        State,
-                        State.name == CMT.state
-                    ).filter(State.id == user['state_id'])
+            if 'Admin' in user['roles'] or 'State' in user['roles']:
+                query = query.filter(CMT.state == user['state_id'])
 
         cmts = query.all()
+        if not cmts:
+            return []
+
         result = []
 
         for cmt in cmts:
-            # Get case managers for this CMT that match both state and facility
-            case_managers = db.session.query(CaseManager).filter(
-                and_(
+            # Count case managers linked to this exact CMT
+            case_manager_count = (
+                db.session.query(func.count(CaseManager.cm_id))
+                .filter(
                     CaseManager.cmt == cmt.name,
                     CaseManager.state == cmt.state,
                     CaseManager.facilities == cmt.facility_name
                 )
-            ).all()
+                .scalar()
+            )
 
-            # Get patient count for this CMT's case managers
-            total_patient_count = 0
-            for case_manager in case_managers:
-                patient_count = db.session.query(Patient).filter(
-                    and_(
-                        # CaseManager.cmt == cmt.name,
-                        # CaseManager.state == cmt.state,
-                        # CaseManager.facilities == cmt.facility_name
-                        Patient.case_manager_id == case_manager.cm_id
-                    )).count()
-                total_patient_count += patient_count
+            # Count patients linked to those case managers
+            patient_count = (
+                db.session.query(func.count(Patient.id))
+                .join(CaseManager, CaseManager.cm_id == Patient.case_manager_id)
+                .filter(
+                    CaseManager.cmt == cmt.name,
+                    CaseManager.state == cmt.state,
+                    CaseManager.facilities == cmt.facility_name
+                )
+                .scalar()
+            )
 
-            # Create the CMT dict with additional data
             cmt_data = cmt_schema.dump(cmt)
-            cmt_data['case_managers'] = [
-                {
-                    'id': cm.id,
-                    'fullname': cm.fullname,
-                    'role': cm.role,
-                    'state': cm.state,
-                    'facilities': cm.facilities,
-                    'created_at': cm.created_at.isoformat() if cm.created_at else None
-                }
-                for cm in case_managers
-            ]
-            cmt_data['patient_count'] = total_patient_count
+            cmt_data['case_manager_count'] = case_manager_count or 0
+            cmt_data['patient_count'] = patient_count or 0
+
             result.append(cmt_data)
 
-        return result    
+        return result
+
     
     @staticmethod
     def create_cmt(data):

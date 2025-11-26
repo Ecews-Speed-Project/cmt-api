@@ -7,7 +7,7 @@ class Patient(db.Model):
     
     id = db.Column('uniquePatientId', db.String(100), primary_key=True)
     pep_id = db.Column('pepId', db.String(50), nullable=False)
-    case_manager_id = db.Column('caseManagerId', db.Integer, db.ForeignKey('cms.case_manager.id'), nullable=True)
+    case_manager_id = db.Column('caseManagerId', db.Integer, db.ForeignKey('cms.case_managers.cm_id'), nullable=True)
     
     # Facility Information
     state = db.Column('state', db.String(100))

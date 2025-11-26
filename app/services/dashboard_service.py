@@ -22,7 +22,46 @@ class DashboardService:
         return date_range.min_date, date_range.max_date
 
     @staticmethod
-    def get_stats(start_date, end_date, user):
+    def _apply_pediatrics_filter(query, pediatrics_filter=False):
+        """
+        Apply pediatrics age filter (0-19 years, including age in months) to a patient query.
+        Args:
+            query: SQLAlchemy query object
+            pediatrics_filter: Boolean, if True filters for pediatrics/adolescents
+        """
+        if pediatrics_filter:
+            query = query.filter(
+                or_(
+                    and_(
+                        Patient.current_age >= 0,
+                        Patient.current_age <= 19
+                    ),
+                    Patient.current_age_months > 0
+                )
+            )
+        return query
+
+    @staticmethod
+    def _apply_pmtct_filter(query, pmtct_filter=False):
+        """
+        Apply PMTCT filter: female patients who are pregnant or breastfeeding.
+        Args:
+            query: SQLAlchemy query object (must already include Patient in FROM/join)
+            pmtct_filter: Boolean, if True filters for PMTCT cohort
+        """
+        if pmtct_filter:
+            query = query.filter(
+                and_(
+                    func.lower(Patient.sex) == 'F',
+                    func.lower(Patient.current_pregnancy_status).in_(
+                        ['pregnant', 'breastfeeding']
+                    )
+                )
+            )
+        return query
+
+    @staticmethod
+    def get_stats(start_date, end_date, user, pediatrics_filter=False, pmtct_filter=False):
         try:
             #logger.info(f"Getting stats for user {str(user.user_id)} from {start_date} to {end_date}")
             
@@ -39,12 +78,28 @@ class DashboardService:
                 elif 'Admin' in user['roles']:
                     patient_query = patient_query.join(State, State.id == user['state_id']).filter(Patient.state == State.name)
 
+            # Apply cohort filters if requested
+            patient_query = DashboardService._apply_pediatrics_filter(patient_query, pediatrics_filter)
+            patient_query = DashboardService._apply_pmtct_filter(patient_query, pmtct_filter)
+
             vl_query = ViralLoad.query
             if 'Super Admin' not in user['roles']:
                 if 'State' in user['roles']:
                     vl_query = vl_query.join(State, State.id == user['state_id']).filter(ViralLoad.state == State.name)
                 elif 'Admin' in user['roles']:
                     vl_query = vl_query.join(State, State.id == user['state_id']).filter(ViralLoad.state == State.name)
+            
+            # Apply cohort filters to viral load query if requested
+            if pediatrics_filter or pmtct_filter:
+                vl_query = vl_query.join(
+                    Patient,
+                    and_(
+                        Patient.pep_id == ViralLoad.pep_id,
+                        Patient.datim_code == ViralLoad.datim_code
+                    )
+                )
+                vl_query = DashboardService._apply_pediatrics_filter(vl_query, pediatrics_filter)
+                vl_query = DashboardService._apply_pmtct_filter(vl_query, pmtct_filter)
             
             # Convert dates for SQL Server compatibility
             current_date = func.cast(func.getdate(), Date)
@@ -158,15 +213,15 @@ class DashboardService:
             raise
 
     @staticmethod
-    def get_trends(start_date, end_date, user):
+    def get_trends(start_date, end_date, user, pediatrics_filter=False, pmtct_filter=False):
         # Get date range from next_appointment_date field if not provided
         if not start_date or not end_date:
             start_date, end_date = DashboardService._get_date_range_from_next_appointment()
             logger.info(f"Using trend date range from next_appointment_date: {start_date} to {end_date}")
 
-        appointments = DashboardService._get_appointment_trends(start_date, end_date, user)
-        viral_loads = DashboardService._get_viral_load_trends(start_date, end_date, user)
-        total_visits = DashboardService._get_visit_trends(start_date, end_date, user)
+        appointments = DashboardService._get_appointment_trends(start_date, end_date, user, pediatrics_filter, pmtct_filter)
+        viral_loads = DashboardService._get_viral_load_trends(start_date, end_date, user, pediatrics_filter, pmtct_filter)
+        total_visits = DashboardService._get_visit_trends(start_date, end_date, user, pediatrics_filter, pmtct_filter)
         
         return {
             'drug_pickups': appointments, 
@@ -175,7 +230,7 @@ class DashboardService:
         }
 
     @staticmethod
-    def _get_appointment_trends(start_date, end_date, user):
+    def _get_appointment_trends(start_date, end_date, user, pediatrics_filter=False, pmtct_filter=False):
         # Calculate the number of weeks between start and end dates
         total_days = (end_date - start_date).days
         num_weeks = (total_days // 7) + (1 if total_days % 7 > 0 else 0)
@@ -224,6 +279,12 @@ class DashboardService:
                 elif 'Admin' in user['roles']:
                     query = query.join(State, State.id == user['state_id']).filter(Patient.state == State.name)
             
+            # Apply cohort filters if requested
+            if pediatrics_filter:
+                query = DashboardService._apply_pediatrics_filter(query, pediatrics_filter)
+            if pmtct_filter:
+                query = DashboardService._apply_pmtct_filter(query, pmtct_filter)
+            
             count = query.scalar() or 0  # Get count or default to 0
             appt_results.append({
                 'week_label': week_label,
@@ -235,7 +296,7 @@ class DashboardService:
         return appt_results
     
     @staticmethod
-    def _get_viral_load_trends(start_date, end_date, user):
+    def _get_viral_load_trends(start_date, end_date, user, pediatrics_filter=False, pmtct_filter=False):
         # Calculate the number of weeks between start and end dates
         total_days = (end_date - start_date).days
         num_weeks = (total_days // 7) + (1 if total_days % 7 > 0 else 0)
@@ -286,6 +347,12 @@ class DashboardService:
                 elif 'Admin' in user['roles']:
                     query = query.join(State, State.id == user['state_id']).filter(Patient.state == State.name)
 
+            # Apply cohort filters if requested
+            if pediatrics_filter:
+                query = DashboardService._apply_pediatrics_filter(query, pediatrics_filter)
+            if pmtct_filter:
+                query = DashboardService._apply_pmtct_filter(query, pmtct_filter)
+
             count = query.scalar() or 0  # Get count or default to 0
             vl_results.append({
                 'week_label': week_label,
@@ -297,7 +364,7 @@ class DashboardService:
         return vl_results
 
     @staticmethod
-    def _get_visit_trends(start_date, end_date, user):
+    def _get_visit_trends(start_date, end_date, user, pediatrics_filter=False, pmtct_filter=False):
         # Calculate the number of weeks between start and end dates
         total_days = (end_date - start_date).days
         num_weeks = (total_days // 7) + (1 if total_days % 7 > 0 else 0)
@@ -334,6 +401,12 @@ class DashboardService:
                 elif 'Admin' in user['roles']:
                     query = query.join(State, State.id == user['state_id']).filter(Patient.state == State.name)
 
+            # Apply cohort filters if requested
+            if pediatrics_filter:
+                query = DashboardService._apply_pediatrics_filter(query, pediatrics_filter)
+            if pmtct_filter:
+                query = DashboardService._apply_pmtct_filter(query, pmtct_filter)
+
             count = query.scalar() or 0  # Get count or default to 0
             visit_results.append({
                 'week_label': week_label,
@@ -345,12 +418,13 @@ class DashboardService:
         return visit_results
     
     @staticmethod
-    def get_top_case_managers(user):
+    def get_top_case_managers(user, pediatrics_filter=False, pmtct_filter=False):
         """
         Get top 3 unique case managers based on their highest final score.
         Uses window functions for better performance.
         Args:
             user: The current user with role and access information
+            pediatrics_filter: Boolean, if True filters for case managers managing pediatrics patients (0-19 years)
         Returns:
             List[dict]: Top 3 unique case managers with their performance data
         """
@@ -369,6 +443,16 @@ class DashboardService:
                 CaseManager,
                 CaseManagerPerformance.CaseManagerID == CaseManager.id
             )
+            
+            # Apply cohort filters if requested - only include case managers with matching patients
+            if pediatrics_filter or pmtct_filter:
+                ranked_subquery = ranked_subquery.join(
+                    Patient,
+                    Patient.case_manager_id == CaseManager.cm_id
+                )
+                ranked_subquery = DashboardService._apply_pediatrics_filter(ranked_subquery, pediatrics_filter)
+                ranked_subquery = DashboardService._apply_pmtct_filter(ranked_subquery, pmtct_filter)
+                ranked_subquery = ranked_subquery.distinct()
             
             # Apply state filter if needed
             if 'Super Admin' not in user['roles']:
@@ -415,11 +499,12 @@ class DashboardService:
             return []
     
     @staticmethod
-    def get_top_cmts(user):
+    def get_top_cmts(user, pediatrics_filter=False, pmtct_filter=False):
         """
         Get top 3 CMTs based on their aggregated final scores.
         Args:
             user: The current user with role and access information
+            pediatrics_filter: Boolean, if True filters for CMTs managing pediatrics patients (0-19 years)
         Returns:
             List[dict]: Top 3 CMTs with their performance data
         """
@@ -437,7 +522,19 @@ class DashboardService:
             ).join(
                 CaseManagerPerformance,
                 CaseManager.id == CaseManagerPerformance.CaseManagerID
-            ).group_by(
+            )
+            
+            # Apply cohort filters if requested - only include CMTs with matching patients
+            if pediatrics_filter or pmtct_filter:
+                unique_cm_subquery = unique_cm_subquery.join(
+                    Patient,
+                    Patient.case_manager_id == CaseManager.cm_id
+                )
+                unique_cm_subquery = DashboardService._apply_pediatrics_filter(unique_cm_subquery, pediatrics_filter)
+                unique_cm_subquery = DashboardService._apply_pmtct_filter(unique_cm_subquery, pmtct_filter)
+                unique_cm_subquery = unique_cm_subquery.distinct()
+            
+            unique_cm_subquery = unique_cm_subquery.group_by(
                 CaseManager.cmt,
                 CaseManager.state,
                 CaseManager.facilities,

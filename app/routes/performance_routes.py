@@ -58,8 +58,14 @@ def get_case_managers():
       401:
         description: Unauthorized - invalid or missing token
     """
+    pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+    pmtct = request.args.get('pmtct', 'false').lower() == 'true'
     current_user = UserService.get_user_by_id(get_jwt_identity())
-    performance_data = PerformanceService.get_case_managers_performance(current_user)
+    performance_data = PerformanceService.get_case_managers_performance(
+        current_user,
+        pediatrics_filter=pediatrics,
+        pmtct_filter=pmtct
+    )
     return jsonify(performance_data), 200
 
 @bp.route('/cmts', methods=['GET'])
@@ -112,8 +118,14 @@ def get_cmt_performance():
       401:
         description: Unauthorized - invalid or missing token
     """
+    pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+    pmtct = request.args.get('pmtct', 'false').lower() == 'true'
     current_user = UserService.get_user_by_id(get_jwt_identity())
-    performance_data = PerformanceService.get_cmt_performance(current_user)
+    performance_data = PerformanceService.get_cmt_performance(
+        current_user,
+        pediatrics_filter=pediatrics,
+        pmtct_filter=pmtct
+    )
     return jsonify(performance_data), 200
 
 @bp.route('/case-managers/<string:case_manager_id>', methods=['GET'])

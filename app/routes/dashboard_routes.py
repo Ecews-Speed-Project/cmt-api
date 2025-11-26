@@ -32,6 +32,11 @@ def get_dashboard_stats():
         format: date
         description: End date for statistics period (YYYY-MM-DD)
         example: "2024-12-31"
+      - name: pediatrics
+        in: query
+        type: boolean
+        description: Filter data for pediatrics patients (ages 0-19). Default is false.
+        example: true
     security:
       - Bearer: []
     responses:
@@ -64,9 +69,17 @@ def get_dashboard_stats():
     """
     start_date = request.args.get('start')
     end_date = request.args.get('end')
+    pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+    pmtct = request.args.get('pmtct', 'false').lower() == 'true'
     current_user = UserService.get_user_by_id(get_jwt_identity())
     print(current_user)
-    stats = DashboardService.get_stats(start_date, end_date, current_user)
+    stats = DashboardService.get_stats(
+        start_date,
+        end_date,
+        current_user,
+        pediatrics_filter=pediatrics,
+        pmtct_filter=pmtct
+    )
     return jsonify(stats)
 
 
@@ -78,6 +91,12 @@ def get_top_cmt():
     ---
     tags:
       - Dashboard
+    parameters:
+      - name: pediatrics
+        in: query
+        type: boolean
+        description: Filter data for pediatrics patients (ages 0-19). Default is false.
+        example: true
     security:
       - Bearer: []
     responses:
@@ -120,8 +139,14 @@ def get_top_cmt():
       401:
         description: Unauthorized - invalid or missing token
     """
+    pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+    pmtct = request.args.get('pmtct', 'false').lower() == 'true'
     current_user = UserService.get_user_by_id(get_jwt_identity())
-    performance_data = DashboardService.get_top_cmts(current_user)
+    performance_data = DashboardService.get_top_cmts(
+        current_user,
+        pediatrics_filter=pediatrics,
+        pmtct_filter=pmtct
+    )
     return jsonify(performance_data), 200
 
 
@@ -133,6 +158,12 @@ def get_top3_case_managers():
     ---
     tags:
       - Dashboard
+    parameters:
+      - name: pediatrics
+        in: query
+        type: boolean
+        description: Filter data for pediatrics patients (ages 0-19). Default is false.
+        example: true
     security:
       - Bearer: []
     responses:
@@ -175,8 +206,14 @@ def get_top3_case_managers():
       401:
         description: Unauthorized - invalid or missing token
     """
+    pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+    pmtct = request.args.get('pmtct', 'false').lower() == 'true'
     current_user = UserService.get_user_by_id(get_jwt_identity())
-    performance_data = DashboardService.get_top_case_managers(current_user)
+    performance_data = DashboardService.get_top_case_managers(
+        current_user,
+        pediatrics_filter=pediatrics,
+        pmtct_filter=pmtct
+    )
     # schema_data = performance_schema.dump(performance_data)
     # top_cmt = sorted(schema_data, key=lambda x: x['final_score'], reverse=True)[:3]
     return jsonify(performance_data), 200
@@ -203,6 +240,11 @@ def get_trends():
         format: date
         description: End date for trends period (YYYY-MM-DD)
         example: "2024-12-31"
+      - name: pediatrics
+        in: query
+        type: boolean
+        description: Filter data for pediatrics patients (ages 0-19). Default is false.
+        example: true
     security:
       - Bearer: []
     responses:
@@ -261,8 +303,16 @@ def get_trends():
             start_date = None
             end_date = None
         
+        pediatrics = request.args.get('pediatrics', 'false').lower() == 'true'
+        pmtct = request.args.get('pmtct', 'false').lower() == 'true'
         current_user = UserService.get_user_by_id(get_jwt_identity())
-        trends = DashboardService.get_trends(start_date, end_date, current_user)
+        trends = DashboardService.get_trends(
+            start_date,
+            end_date,
+            current_user,
+            pediatrics_filter=pediatrics,
+            pmtct_filter=pmtct
+        )
         return jsonify(trends)
     except Exception as e:
         print(f"Error in get_trends: {str(e)}")

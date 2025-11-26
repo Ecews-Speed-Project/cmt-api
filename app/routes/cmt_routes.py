@@ -6,6 +6,15 @@ from app.schemas.cmt_schema import cmt_schema, cmts_schema
 
 bp = Blueprint('cmt', __name__, url_prefix='/api/cmt')
 
+"Get CMT List"
+@bp.route('/list', methods=['GET'])
+@jwt_required()
+def get_cmt_list():
+    current_user = UserService.get_user_by_id(get_jwt_identity())
+    cmts = CMTService.get_cmt_list(current_user)
+    return jsonify(cmts)
+
+
 @bp.route('/', methods=['GET'])
 @jwt_required()
 def get_cmts():

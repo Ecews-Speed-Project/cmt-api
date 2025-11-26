@@ -2,7 +2,7 @@ from .user import User, Roles, UserRoles
 from .patient import Patient
 from .facility import State, Facility
 from .cmt import CMT
-from .case_manager import CaseManager
+from .case_manager import CaseManager, CaseManagerClaims
 from .performance import CaseManagerPerformance
 from .appointments import DrugPickup, ViralLoad
 
@@ -17,5 +17,6 @@ __all__ = [
     'CaseManagerPerformance',
     'DrugPickup',
     'ViralLoad',
-    'CaseManager'
+    'CaseManager',
+    'CaseManagerClaims'
 ]

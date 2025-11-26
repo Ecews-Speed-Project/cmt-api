@@ -4,12 +4,18 @@ from app.schemas.case_manager_schema import (
 )
 from app import db
 from sqlalchemy import func
+from sqlalchemy.orm import noload
 
 class CaseManagerService:
     @staticmethod
     def get_all_case_managers(user=None):
         """Get all case managers."""
-        query = db.session.query(CaseManager)
+        query = db.session.query(CaseManager).options(
+            noload(CaseManager.assigned_patients),
+            noload(CaseManager.performance_metrics),
+            noload(CaseManager.drug_pickup_appointments),
+            noload(CaseManager.viral_load_appointments)
+        )
         # Apply user role-based filtering
         if 'Super Admin' not in user['roles']:
             if 'State' in user['roles']:
